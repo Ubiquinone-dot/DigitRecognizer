@@ -53,8 +53,8 @@ class NET:
         ]]
 
         model.compile(
-            loss='categorical_crossentropy',
-            optimizer='adam',
+            loss=tf.keras.losses.CategoricalCrossentropy(),
+            optimizer=tf.keras.optimizers.Nadam(learning_rate=0.001),
             metrics=['accuracy']
         )
 
@@ -106,15 +106,21 @@ class NET:
                 return X, _labels
 
         x, labels = load_file()
+        m = x.shape[0] * (x.shape[0] == labels.shape[0])
+        # shuffle
+        ind_list = list(range(m))
+        random.shuffle(ind_list)
+        x = x[ind_list][:,:]
+        labels = labels[ind_list]
+
         # Split the training file 90/10:
-        m = x[0] * (x.shape[0] == labels.shape[0])
-        train_x = x[:37800]
-        test_x = x[37800:]
-        train_labels = labels[:37800]
-        test_labels = labels[37800:]
+        n = int(m * 0.9) # 37800, how many elements of the set go to training
+        train_x = x[:n]
+        test_x = x[n:]
+        train_labels = labels[:n]
+        test_labels = labels[n:]
         assert(test_labels.shape[0] == test_x.shape[0])
         assert(train_labels.shape[0] == train_x.shape[0])
-        print(test_labels, train_labels)
 
         self.train_x = train_x
         self.train_labels = train_labels
@@ -130,6 +136,7 @@ class NET:
             x=self.train_x,
             y=self.train_labels,
             epochs=30,
+            batch_size=64,
             validation_data=(self.test_x, self.test_labels),
             initial_epoch=self.last_finished_epoch,
             callbacks=[
