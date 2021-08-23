@@ -30,18 +30,24 @@ class NET:
             LeakyReLU(leak),
             Conv2D(32, kernel_size=(3,3), padding='same'),
             MaxPooling2D(padding='same'),
+            Dropout(0.25),
             Conv2D(32, kernel_size=(3,3), padding='same'),
             MaxPooling2D(padding='same'),
+            Dropout(0.25),
             LeakyReLU(leak),
             Conv2D(64, kernel_size=(3,3), padding='same'),
             LeakyReLU(leak),
 
             Flatten(),
             Dense(256),
+            Dropout(0.25),
             LeakyReLU(leak),
             Dense(28),
+            Dropout(0.25),
             LeakyReLU(leak),
             Dense(10),
+            Dropout(0.25),
+            LeakyReLU(leak),
             Activation('softmax')
 
         ]]
@@ -74,50 +80,52 @@ class NET:
         def load_file(SUB=False):
             if SUB: loc = 'data/test.csv'
             else: loc = 'data/train.csv'
-
             with open(loc) as fhandle:
                 csv_reader = csv.reader(fhandle, delimiter=',')
-
                 X = []
-                labels = []
+                _labels = []
                 for i, line in enumerate(csv_reader):
                     if i > 0:
                         if SUB:
                             label = None
-                            array = np.array(line).astype(float)
+                            array = line
                         else:
-                            label = tf.keras.utils.to_categorical(np.array(line[0]).astype(int))
-                            array = np.array(line[1:]).astype(float)
+                            label = line[0]
+                            array = line[1:]
 
                         entry = np.reshape(array, (28,28))
                         X.append(entry)
-                        labels.append(label)
-            X = np.array(X)
-            labels = np.array(labels)
+                        _labels.append(label)
 
-            X = X / 255 - 0.5  # Normalize input
-            X = np.expand_dims(X, -1)  # Expand dims for convolutions
-            return X, labels
+                X = np.array(X).astype('float32')
+                _labels = np.array(_labels).astype(int)
 
+                _labels = tf.keras.utils.to_categorical(_labels)
+                X = X / 255 - 0.5  # Normalize input
+                X = np.expand_dims(X, -1)  # Expand dims for convolutions
+                return X, _labels
 
-        X, labels = load_file()
+        x, labels = load_file()
         # Split the training file 90/10:
-        m = X[0] * (X.shape[0] == labels.shape[0])
-        train_x = X[:37800]
-        test_x = X[37800:]
+        m = x[0] * (x.shape[0] == labels.shape[0])
+        train_x = x[:37800]
+        test_x = x[37800:]
         train_labels = labels[:37800]
         test_labels = labels[37800:]
         assert(test_labels.shape[0] == test_x.shape[0])
         assert(train_labels.shape[0] == train_x.shape[0])
         print(test_labels, train_labels)
 
-        dataset = (train_x, train_labels), (test_x, test_labels)
-        (self.train_x, self.train_labels), (self.test_x, self.test_labels) = dataset
+        self.train_x = train_x
+        self.train_labels = train_labels
+        self.test_x = test_x
+        self.test_labels = test_labels
 
         print('Data successfully loaded')
-        return dataset
+        return (self.train_x, self.train_labels), (self.test_x, self.test_labels)
 
     def train(self):
+        print(self.test_labels.shape, '\n\n',self.test_labels)
         hist = self.model.fit(
             x=self.train_x,
             y=self.train_labels,
